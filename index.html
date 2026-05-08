@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OWL — Cinematic Design System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0b; --bg2: #111113; --bg3: #1a1a1e;
+      --s: rgba(255,255,255,0.03); --sh: rgba(255,255,255,0.06);
+      --b1: rgba(255,255,255,0.08); --b2: rgba(255,255,255,0.12);
+      --t1: #f5f5f7; --t2: #a1a1a6; --t3: #6e6e73;
+      --a1: #ff6b35; --a1g: rgba(255,107,53,0.3);
+      --a2: #00d4ff; --a2g: rgba(0,212,255,0.3);
+      --a3: #a855f7; --a3g: rgba(168,85,247,0.3);
+      --g1: linear-gradient(135deg,#ff6b35,#ffd700);
+      --serif: 'Playfair Display',Georgia,serif;
+      --sans: 'Inter',-apple-system,sans-serif;
+      --mono: 'JetBrains Mono',monospace;
+      --ease: cubic-bezier(0.16,1,0.3,1);
+      --sp: 0.5rem;
+    }
+    html { scroll-behavior: auto; -webkit-font-smoothing: antialiased; background: var(--bg); }
+    body { font-family: var(--sans); background: var(--bg); color: var(--t1); line-height: 1.7; overflow-x: hidden; }
+    ::selection { background: var(--a1); color: var(--bg); }
+    ::-webkit-scrollbar { width: 0; background: transparent; }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 2rem; }
+
+    /* LOADER */
+    .loader { position: fixed; inset: 0; z-index: 100000; background: var(--bg); display: flex; align-items: center; justify-content: center; transition: opacity 0.8s, visibility 0.8s; }
+    .loader.hide { opacity: 0; visibility: hidden; }
+    .loader-text { font-family: var(--serif); font-size: 4rem; font-weight: 700; background: var(--g1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* CANVASES */
+    #three-main { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    #fx-canvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+    /* CURSOR */
+    .cursor-glow { position: fixed; width: 400px; height: 400px; background: radial-gradient(circle,var(--a1g) 0%,transparent 70%); border-radius: 50%; pointer-events: none; z-index: 9999; opacity: 0.08; transform: translate(-50%,-50%); }
+
+    /* NAV */
+    .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 1.2rem 0; background: rgba(10,10,11,0.75); backdrop-filter: blur(20px); border-bottom: 1px solid var(--b1); transition: all 0.4s; }
+    .nav .container { display: flex; align-items: center; justify-content: space-between; }
+    .nav-logo { font-family: var(--serif); font-size: 1.5rem; font-weight: 700; }
+    .nav-logo span { background: var(--g1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+    .nav-links a { font-size: 0.85rem; font-weight: 500; color: var(--t2); transition: color 0.3s; }
+    .nav-links a:hover { color: var(--t1); }
+    .nav-cta { padding: 10px 28px; background: var(--a1); color: var(--bg); border-radius: 10px; font-weight: 700; font-size: 0.85rem; transition: all 0.3s; }
+    .nav-cta:hover { box-shadow: 0 0 40px var(--a1g); transform: translateY(-2px); }
+
+    /* HERO */
+    .hero { position: relative; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; z-index: 2; }
+    .hero-media { position: absolute; inset: 0; z-index: 0; }
+    .hero-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.2; }
+    .hero-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10,10,11,0.5) 0%, rgba(10,10,11,0.3) 40%, rgba(10,10,11,0.9) 100%); z-index: 1; }
+    .hero-content { position: relative; z-index: 2; text-align: center; max-width: 1000px; padding: 0 2rem; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 0.75rem; padding: 10px 28px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 100px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--a1); margin-bottom: 2.5rem; backdrop-filter: blur(10px); }
+    .hero-badge .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--a1); box-shadow: 0 0 12px var(--a1g); }
+    .hero-title { font-family: var(--serif); font-size: clamp(4rem, 10vw, 8.5rem); font-weight: 700; line-height: 0.97; letter-spacing: -0.035em; margin-bottom: 1.5rem; }
+    .hero-title .line { display: block; }
+    .hero-title .accent { background: var(--g1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-sub { font-size: clamp(1.1rem, 2vw, 1.35rem); color: var(--t2); max-width: 680px; margin: 0 auto 3rem; line-height: 1.7; font-weight: 300; }
+    .hero-cta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn-p { padding: 18px 48px; background: var(--a1); color: var(--bg); border-radius: 14px; font-weight: 700; font-size: 1rem; transition: all 0.4s var(--ease); position: relative; overflow: hidden; }
+    .btn-p:hover { box-shadow: 0 0 50px var(--a1g); transform: translateY(-3px); }
+    .btn-s { padding: 18px 48px; background: rgba(255,255,255,0.04); color: var(--t1); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; font-weight: 600; font-size: 1rem; transition: all 0.3s; backdrop-filter: blur(10px); }
+    .btn-s:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); }
+    .scroll-hint { position: absolute; bottom: 3rem; left: 50%; transform: translateX(-50%); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; color: var(--t3); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; }
+    .scroll-hint .mouse { width: 24px; height: 38px; border: 2px solid var(--b2); border-radius: 12px; position: relative; }
+
+    /* SECTIONS */
+    .section { padding: 10rem 0; position: relative; z-index: 2; }
+
+    /* LOGOS */
+    .logos { padding: 4rem 0; border-top: 1px solid var(--b1); border-bottom: 1px solid var(--b1); overflow: hidden; }
+    .logos-track { display: flex; gap: 5rem; width: max-content; }
+    .logo-item { font-family: var(--serif); font-size: 1.8rem; font-weight: 600; color: var(--t3); opacity: 0.15; white-space: nowrap; }
+
+    /* SECTION HEADER */
+    .sh { text-align: center; max-width: 800px; margin: 0 auto 5rem; }
+    .sh-label { display: inline-flex; align-items: center; gap: 1rem; font-family: var(--mono); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.15em; color: var(--a1); margin-bottom: 1.5rem; }
+    .sh-label::before, .sh-label::after { content: ''; width: 30px; height: 1px; background: var(--a1); }
+    .sh-title { font-family: var(--serif); font-size: clamp(2.8rem, 5.5vw, 4.5rem); font-weight: 700; line-height: 1.06; letter-spacing: -0.025em; margin-bottom: 1.25rem; }
+    .sh-desc { font-size: 1.2rem; color: var(--t2); line-height: 1.7; font-weight: 300; }
+
+    /* BENTO */
+    .bento { display: grid; grid-template-columns: repeat(4,1fr); grid-auto-rows: 240px; gap: 1rem; }
+    .bi { border-radius: 20px; background: var(--s); border: 1px solid var(--b1); padding: 2rem; display: flex; flex-direction: column; justify-content: flex-end; position: relative; overflow: hidden; transition: all 0.5s var(--ease); }
+    .bi:hover { transform: translateY(-8px); box-shadow: 0 20px 60px rgba(0,0,0,0.5); border-color: var(--b2); }
+    .bi-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.3; transition: opacity 0.5s, transform 0.6s var(--ease); }
+    .bi:hover .bi-img { opacity: 0.5; transform: scale(1.05); }
+    .bi-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,10,11,0.95) 0%, rgba(10,10,11,0.3) 60%, transparent 100%); z-index: 1; }
+    .bi-content { position: relative; z-index: 2; }
+    .bi-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem; }
+    .bi h3 { font-family: var(--serif); font-size: 1.35rem; font-weight: 600; margin-bottom: 0.35rem; }
+    .bi p { font-size: 0.875rem; color: var(--t2); line-height: 1.5; }
+    .bi-tall { grid-row: span 2; }
+    .bi-wide { grid-column: span 2; }
+    .bi-big { grid-column: span 2; grid-row: span 2; }
+
+    /* 3D SHOWCASE */
+    .s3d { position: relative; min-height: 100vh; display: flex; align-items: center; overflow: hidden; }
+    .s3d-canvas { position: absolute; inset: 0; z-index: 0; }
+    .s3d-content { position: relative; z-index: 1; max-width: 600px; padding: 0 2rem; }
+
+    /* IMAGE PARALLAX */
+    .img-p { position: relative; min-height: 90vh; display: flex; align-items: center; overflow: hidden; }
+    .img-p-bg { position: absolute; inset: -15%; z-index: 0; }
+    .img-p-bg img { width: 100%; height: 100%; object-fit: cover; }
+    .img-p-grad { position: absolute; inset: 0; background: linear-gradient(to right, rgba(10,10,11,0.95) 0%, rgba(10,10,11,0.4) 60%, transparent 100%); z-index: 1; }
+    .img-p-content { position: relative; z-index: 2; max-width: 550px; }
+
+    /* STATS */
+    .stats { display: flex; justify-content: center; gap: 5rem; padding: 6rem 0; }
+    .stat { text-align: center; }
+    .stat-n { font-family: var(--mono); font-size: 3.5rem; font-weight: 700; background: var(--g1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.25rem; }
+    .stat-l { font-size: 0.8rem; color: var(--t3); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    /* TESTIMONIALS */
+    .t-track { display: flex; gap: 1.5rem; width: max-content; }
+    .tc { min-width: 420px; max-width: 420px; padding: 2rem; background: var(--s); border: 1px solid var(--b1); border-radius: 20px; transition: all 0.3s; }
+    .tc:hover { border-color: var(--b2); transform: translateY(-4px); }
+    .tc-text { font-family: var(--serif); font-size: 1.1rem; font-style: italic; color: var(--t1); margin-bottom: 1.5rem; line-height: 1.65; }
+    .tc-author { display: flex; align-items: center; gap: 1rem; }
+    .tc-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--g1); }
+
+    /* CTA */
+    .cta { padding: 10rem 0; text-align: center; position: relative; }
+    .cta-glow { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 800px; height: 800px; background: radial-gradient(circle,var(--a1g) 0%,transparent 70%); opacity: 0.15; pointer-events: none; }
+    .cta-inner { position: relative; z-index: 1; }
+    .cta-title { font-family: var(--serif); font-size: clamp(3.5rem, 7vw, 6rem); font-weight: 700; line-height: 1.04; margin-bottom: 1.5rem; }
+
+    /* FOOTER */
+    .footer { padding: 5rem 0 2rem; border-top: 1px solid var(--b1); position: relative; z-index: 2; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 4rem; margin-bottom: 5rem; }
+    .footer-col h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--t3); margin-bottom: 1.25rem; }
+    .footer-col a { display: block; color: var(--t2); font-size: 0.9rem; padding: 5px 0; transition: color 0.3s; }
+    .footer-col a:hover { color: var(--t1); }
+    .footer-bot { display: flex; justify-content: space-between; align-items: center; padding-top: 2rem; border-top: 1px solid var(--b1); font-size: 0.8rem; color: var(--t3); }
+
+    /* RESPONSIVE */
+    @media(max-width:1024px) {
+      .bento { grid-template-columns: repeat(2,1fr); }
+      .bi-big, .bi-tall { grid-column: span 2; grid-row: span 1; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .stats { flex-wrap: wrap; gap: 3rem; }
+    }
+    @media(max-width:768px) {
+      .nav-links { display: none; }
+      .bento { grid-template-columns: 1fr; grid-auto-rows: auto; }
+      .bi-big, .bi-wide, .bi-tall { grid-column: span 1; grid-row: span 1; }
+      .bi { min-height: 200px; }
+      .tc { min-width: 320px; max-width: 320px; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .hero-cta { flex-direction: column; align-items: center; }
+      .stats { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <!-- LOADER -->
+  <div class="loader" id="loader"><div class="loader-text">OWL</div></div>
+
+  <!-- CANVASES -->
+  <canvas id="three-main"></canvas>
+  <canvas id="fx-canvas"></canvas>
+  <div class="cursor-glow" id="cursorGlow"></div>
+
+  <!-- NAV -->
+  <nav class="nav"><div class="container">
+    <a href="#" class="nav-logo">OWL<span>Agency</span></a>
+    <ul class="nav-links">
+      <li><a href="#features">Work</a></li>
+      <li><a href="#showcase">Services</a></li>
+      <li><a href="#process">Process</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <a href="#contact" class="nav-cta">Start a Project</a>
+  </div></nav>
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <div class="hero-media">
+      <img class="hero-img" src="img/hero-cinematic.jpg" alt="" loading="eager" onerror="this.style.display='none'">
+      <div class="hero-overlay"></div>
+    </div>
+    <div class="hero-content">
+      <span class="hero-badge"><span class="pulse"></span> Award-Winning Digital Agency</span>
+      <h1 class="hero-title"><span class="line">We Design</span><span class="line accent">Digital Experiences</span></h1>
+      <p class="hero-sub">Cinematic web design powered by AI, 3D, and motion. We craft digital products that captivate, convert, and leave lasting impressions.</p>
+      <div class="hero-cta">
+        <a href="#work" class="btn-p">View Our Work →</a>
+        <a href="#contact" class="btn-s">Get in Touch</a>
+      </div>
+    </div>
+    <div class="scroll-hint"><div class="mouse"></div><span>Scroll</span></div>
+  </section>
+
+  <!-- LOGOS -->
+  <section class="logos"><div class="logos-track" id="logosTrack"></div></section>
+
+  <!-- STATS -->
+  <section class="section"><div class="container"><div class="stats">
+    <div class="stat"><div class="stat-n">150+</div><div class="stat-l">Projects Delivered</div></div>
+    <div class="stat"><div class="stat-n">98%</div><div class="stat-l">Client Satisfaction</div></div>
+    <div class="stat"><div class="stat-n">12</div><div class="stat-l">Design Awards</div></div>
+    <div class="stat"><div class="stat-n">∞</div><div class="stat-l">Possibilities</div></div>
+  </div></div></section>
+
+  <!-- FEATURES BENTO -->
+  <section class="section" id="features"><div class="container">
+    <div class="sh"><span class="sh-label">What We Do</span><h2 class="sh-title">Full-Spectrum Digital Design</h2><p class="sh-desc">From concept to deployment, we handle every aspect of your digital presence with cinematic quality and technical excellence.</p></div>
+    <div class="bento">
+      <div class="bi bi-big">
+        <img class="bi-img" src="img/data-viz-cinematic.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        <div class="bi-overlay"></div>
+        <div class="bi-content">
+          <div class="bi-icon" style="background:linear-gradient(135deg,rgba(255,107,53,0.25),rgba(255,107,53,0.05));">🎬</div>
+          <h3>Cinematic Web Design</h3>
+          <p>Scroll-driven animations, 3D scenes, particle effects, and AI-generated imagery integrated into cohesive visual narratives.</p>
+        </div>
+      </div>
+      <div class="bi">
+        <div class="bi-content"><div class="bi-icon" style="background:linear-gradient(135deg,rgba(0,212,255,0.25),rgba(0,212,255,0.05));">🧠</div><h3>AI Integration</h3><p>Generative imagery, smart layouts, and automated design systems powered by machine learning.</p></div>
+      </div>
+      <div class="bi"><div class="bi-content"><div class="bi-icon" style="background:linear-gradient(135deg,rgba(168,85,247,0.25),rgba(168,85,247,0.05));">📊</div><h3>Data Visualization</h3><p>Interactive dashboards, 3D charts, and real-time data rendered with cinematic motion.</p></div>
+      </div>
+      <div class="bi"><div class="bi-content"><div class="bi-icon" style="background:linear-gradient(135deg,rgba(16,185,129,0.25),rgba(16,185,129,0.05));">⚡</div><h3>Performance First</h3><p>Every animation runs at 60fps. GPU-accelerated, optimized, and deliverable.</p></div>
+      </div>
+      <div class="bi bi-wide">
+        <div class="bi-content"><div class="bi-icon" style="background:linear-gradient(135deg,rgba(255,107,53,0.25),rgba(255,107,53,0.05));">🌐</div><h3>Full-Stack Delivery</h3><p>Frontend, backend, CMS, and deployment. We ship complete products, not just designs. From interactive prototypes to production-ready applications.</p></div>
+      </div>
+      <div class="bi"><div class="bi-content"><div class="bi-icon" style="background:linear-gradient(135deg,rgba(0,212,255,0.25),rgba(0,212,255,0.05));">🎨</div><h3>Brand Identity</h3><p>Visual systems, typography, color theory, and design tokens that scale.</p></div>
+      </div>
+      <div class="bi bi-tall">
+        <div class="bi-content"><div class="bi-icon" style="background:linear-gradient(135deg,rgba(168,85,247,0.25),rgba(168,85,247,0.05));">🔮</div><h3>3D & Motion</h3><p>Three.js scenes, WebGL shaders, scroll-linked 3D animations, and cinematic transitions that bring interfaces to life with depth and motion.</p></div>
+      </div>
+      <div class="bi"><div class="bi-content"><div class="bi-icon" style="background:linear-gradient(135deg,rgba(255,107,53,0.25),rgba(255,107,53,0.05));">📱</div><h3>Responsive</h3><p>Mobile-first design that adapts seamlessly across all devices and screen sizes.</p></div>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- 3D SHOWCASE -->
+  <section class="s3d" id="showcase"><canvas class="s3d-canvas" id="s3dCanvas"></canvas>
+    <div class="container"><div class="s3d-content">
+      <span class="sh-label" style="color:var(--a2);">Interactive 3D</span>
+      <h2 style="font-family:var(--serif);font-size:clamp(3rem,5vw,4.5rem);font-weight:700;line-height:1.06;margin-bottom:1.25rem;">Design That Comes Alive</h2>
+      <p style="font-size:1.1rem;color:var(--t2);margin-bottom:2rem;">Real-time Three.js scenes with floating geometric particles, dynamic lighting, and scroll-linked camera movements. The 3D scene responds to your scroll and mouse position.</p>
+      <a href="#contact" class="btn-p">Work With Us →</a>
+    </div></div>
+  </section>
+
+  <!-- IMAGE PARALLAX -->
+  <section class="img-p" id="parallax1">
+    <div class="img-p-bg" id="parallaxBg"><img src="img/data-viz-cinematic.jpg" alt="" loading="lazy" onerror="this.style.display='none'"></div>
+    <div class="img-p-grad"></div>
+    <div class="container"><div class="img-p-content">
+      <span class="sh-label" style="color:var(--a3);">AI-Generated Imagery</span>
+      <h2 style="font-family:var(--serif);font-size:clamp(2.5rem,4vw,3.5rem);font-weight:700;line-height:1.08;margin-bottom:1.25rem;">Every Image, Crafted by AI</h2>
+      <p style="font-size:1.1rem;color:var(--t2);margin-bottom:2rem;">Each visual on this page was generated by AI and integrated with multi-layer parallax, scroll-driven reveals, and cinematic depth-of-field effects.</p>
+    </div></div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="section" id="testimonials"><div class="container">
+    <div class="sh"><span class="sh-label">Clients</span><h2 class="sh-title">What People Say</h2></div>
+  </div><div class="t-track">
+    <div class="tc"><p class="tc-text">"They completely transformed our digital presence. The cinematic quality of our new site doubled our conversion rate in the first month."</p><div class="tc-author"><div class="tc-avatar"></div><div><div style="font-weight:600;font-size:0.9rem;">Sarah Chen</div><div style="font-size:0.75rem;color:var(--t3);">CEO, TechFlow</div></div></div></div>
+    <div class="tc"><p class="tc-text">"The 3D scenes are incredible. Investors literally asked who designed our website. We closed our seed round 2x faster."</p><div class="tc-author"><div class="tc-avatar"></div><div><div style="font-weight:600;font-size:0.9rem;">Marcus Rivera</div><div style="font-size:0.75rem;color:var(--t3);">Founder, Luxe Studio</div></div></div></div>
+    <div class="tc"><p class="tc-text">"We went from looking like a startup to looking like a Fortune 500 company. The attention to detail is unmatched."</p><div class="tc-author"><div class="tc-avatar"></div><div><div style="font-weight:600;font-size:0.9rem;">Emily Watson</div><div style="font-size:0.75rem;color:var(--t3);">CMO, Nexus AI</div></div></div></div>
+    <div class="tc"><p class="tc-text">"The scroll animations are buttery smooth. Our bounce rate dropped 40% after the redesign."</p><div class="tc-author"><div class="tc-avatar"></div><div><div style="font-weight:600;font-size:0.9rem;">David Park</div><div style="font-size:0.75rem;color:var(--t3);">CTO, Quantum Labs</div></div></div></div>
+    <!-- Duplicate for infinite scroll -->
+    <div class="tc"><p class="tc-text">"They completely transformed our digital presence. The cinematic quality of our new site doubled our conversion rate."</p><div class="tc-author"><div class="tc-avatar"></div><div><div style="font-weight:600;font-size:0.9rem;">Sarah Chen</div><div style="font-size:0.75rem;color:var(--t3);">CEO, TechFlow</div></div></div></div>
+    <div class="tc"><p class="tc-text">"The 3D scenes are incredible. Investors literally asked who designed our website."</p><div class="tc-author"><div class="tc-avatar"></div><div><div style="font-weight:600;font-size:0.9rem;">Marcus Rivera</div><div style="font-size:0.75rem;color:var(--t3);">Founder, Luxe Studio</div></div></div></div>
+    <div class="tc"><p class="tc-text">"We went from looking like a startup to looking like a Fortune 500 company."</p><div class="tc-author"><div class="tc-avatar"></div><div><div style="font-weight:600;font-size:0.9rem;">Emily Watson</div><div style="font-size:0.75rem;color:var(--t3);">CMO, Nexus AI</div></div></div></div>
+    <div class="tc"><p class="tc-text">"The scroll animations are buttery smooth. Our bounce rate dropped 40%."</p><div class="tc-author"><div class="tc-avatar"></div><div><div style="font-weight:600;font-size:0.9rem;">David Park</div><div style="font-size:0.75rem;color:var(--t3);">CTO, Quantum Labs</div></div></div></div>
+  </div></section>
+
+  <!-- CTA -->
+  <section class="cta" id="contact">
+    <div class="cta-glow"></div>
+    <div class="container"><div class="cta-inner">
+      <h2 class="cta-title">Let's Build<br><span style="background:var(--g1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Something Great</span></h2>
+      <p style="font-size:1.25rem;color:var(--t2);max-width:550px;margin:0 auto 2.5rem;">Ready to elevate your digital presence? Let's create something extraordinary together.</p>
+      <div class="hero-cta"><a href="mailto:hello@owl.agency" class="btn-p">Start a Project →</a><a href="#work" class="btn-s">View Portfolio</a></div>
+    </div></div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer"><div class="container">
+    <div class="footer-grid">
+      <div><h3 style="font-family:var(--serif);font-size:1.6rem;font-weight:700;margin-bottom:1rem;">OWL<span style="color:var(--a1)">Agency</span></h3><p style="color:var(--t2);font-size:0.9rem;max-width:320px;">Cinematic web design studio. We craft digital experiences with AI, 3D, and motion.</p></div>
+      <div class="footer-col"><h4>Services</h4><a href="#">Web Design</a><a href="#">3D / Motion</a><a href="#">AI Integration</a><a href="#">Development</a></div>
+      <div class="footer-col"><h4>Company</h4><a href="#">About</a><a href="#">Careers</a><a href="#">Blog</a><a href="#">Contact</a></div>
+      <div class="footer-col"><h4>Legal</h4><a href="#">Privacy</a><a href="#">Terms</a><a href="#">Cookies</a></div>
+    </div>
+    <div class="footer-bot"><p>© 2026 OWL Agency — Crafted with precision</p><p>Built with Three.js + AI</p></div>
+  </div></footer>
+
+  <script>
+    // THREE.JS MAIN SCENE
+    (function(){
+      const c=document.getElementById('three-main'),ctx=c.getContext('webgl');
+      const s=new THREE.Scene(),cam=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,1000);
+      cam.position.z=25;
+      const r=new THREE.WebGLRenderer({canvas:c,alpha:true,antialias:true});
+      r.setSize(innerWidth,innerHeight); r.setPixelRatio(Math.min(devicePixelRatio,2));
+
+      const objs=[];
+      const geos=[new THREE.IcosahedronGeometry(1,0),new THREE.OctahedronGeometry(1.2,0),new THREE.TetrahedronGeometry(1,0),new THREE.TorusKnotGeometry(0.7,0.25,64,8,2,3),new THREE.DodecahedronGeometry(0.9,0)];
+      for(let i=0;i<50;i++){
+        const m=new THREE.Mesh(geos[i%5],new THREE.MeshBasicMaterial({color:i%2?0xff6b35:0x00d4ff,wireframe:true,transparent:true,opacity:0.06+Math.random()*0.08}));
+        m.position.set((Math.random()-0.5)*50,(Math.random()-0.5)*35,(Math.random()-0.5)*25);
+        m.scale.setScalar(0.5+Math.random()*3);
+        m.userData={rx:(Math.random()-0.5)*0.006,ry:(Math.random()-0.5)*0.006,os:Math.random()*Math.PI*2,sp:0.0003+Math.random()*0.0015};
+        s.add(m); objs.push(m);
+      }
+      const pG=new THREE.BufferGeometry(),pP=new Float32Array(600*3);
+      for(let i=0;i<1800;i++)pP[i]=(Math.random()-0.5)*60;
+      pG.setAttribute('position',new THREE.BufferAttribute(pP,3));
+      s.add(new THREE.Points(pG,new THREE.PointsMaterial({color:0xff6b35,size:0.06,transparent:true,opacity:0.35})));
+
+      let mx=0,my=0,sy=0;
+      addEventListener('mousemove',e=>{mx=(e.clientX/innerWidth-0.5)*2;my=(e.clientY/innerHeight-0.5)*2;});
+      addEventListener('scroll',()=>sy=scrollY,{passive:true});
+
+      function animate(){
+        requestAnimationFrame(animate);
+        const t=performance.now();
+        objs.forEach(o=>{o.rotation.x+=o.userData.rx;o.rotation.y+=o.userData.ry;o.position.y+=Math.sin(t*o.userData.sp+o.userData.os)*0.01;});
+        cam.position.x+=(mx*2-cam.position.x)*0.02;
+        cam.position.y+=(-my*1.5-cam.position.y)*0.02;
+        cam.position.z=25-sy*0.008;
+        cam.lookAt(s.position);
+        r.render(s,cam);
+      }
+      animate();
+      addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();r.setSize(innerWidth,innerHeight);});
+    })();
+
+    // SHOWCASE 3D
+    (function(){
+      const c=document.getElementById('s3dCanvas'),ctx=c.getContext('webgl');
+      const s=new THREE.Scene(),cam=new THREE.PerspectiveCamera(60,c.clientWidth/c.clientHeight,0.1,100);
+      cam.position.z=20;
+      const r=new THREE.WebGLRenderer({canvas:c,alpha:true,antialias:true});
+      r.setSize(c.clientWidth,c.clientHeight);
+      r.setPixelRatio(Math.min(devicePixelRatio,2));
+
+      const main=new THREE.Mesh(new THREE.IcosahedronGeometry(4,1),new THREE.MeshBasicMaterial({color:0xff6b35,wireframe:true,transparent:true,opacity:0.25}));
+      s.add(main);
+      const inner=new THREE.Mesh(new THREE.TorusKnotGeometry(2.5,0.6,64,8,2,3),new THREE.MeshBasicMaterial({color:0x00d4ff,wireframe:true,transparent:true,opacity:0.15}));
+      s.add(inner);
+
+      const orbiters=[];
+      for(let i=0;i<20;i++){
+        const geo=[new THREE.OctahedronGeometry(0.15,0),new THREE.TetrahedronGeometry(0.15,0),new THREE.DodecahedronGeometry(0.12,0)][i%3];
+        const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:i%2?0xa855f7:0xff6b35,wireframe:true,transparent:true,opacity:0.4+Math.random()*0.3}));
+        m.userData={r:6+Math.random()*6,sp:0.0008+Math.random()*0.003,off:Math.random()*Math.PI*2,yOff:(Math.random()-0.5)*5};
+        s.add(m); orbiters.push(m);
+      }
+
+      let scrollS=0;
+      document.addEventListener('scroll',()=>{const el=document.getElementById('showcase');if(el){const rect=el.getBoundingClientRect();scrollS=-rect.top;}},{passive:true});
+
+      function animate(){
+        requestAnimationFrame(animate);
+        const t=performance.now();
+        main.rotation.y=t*0.0004;main.rotation.x=t*0.0002;
+        inner.rotation.y=-t*0.0006;inner.rotation.z=t*0.0003;
+        orbiters.forEach(o=>{const d=o.userData;o.position.x=Math.cos(t*d.sp+d.off)*d.r;o.position.z=Math.sin(t*d.sp+d.off)*d.r;o.position.y=d.yOff+Math.sin(t*0.001+d.off)*2;o.rotation.x=t*0.002;o.rotation.y=t*0.003;});
+        cam.rotation.y=scrollS*0.0002;
+        r.render(s,cam);
+      }
+      animate();
+    })();
+
+    // GSAP SCROLLTRIGGER
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Parallax effects
+    gsap.to('.hero-img', { scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}, y:150, scale:1.15 });
+    gsap.to('#parallaxBg', { scrollTrigger:{trigger:'#parallax1',start:'top bottom',end:'bottom top',scrub:true }, y:120 });
+
+    // Nav scroll effect
+    ScrollTrigger.create({ start: 'top -80', end: 99999, toggleClass: { className: 'nav-scrolled', targets: '.nav' } });
+
+    // Logos
+    const logos=['STRIPE','LINEAR','VERCEL','NOTION','FIGMA','RAYCAST','SUPERHUMAN','CURSOR','ELEVENLABS','FRAMER','OPENAI','ANTHROPIC'];
+    document.getElementById('logosTrack').innerHTML=[...logos,...logos].map(l=>`<span class="logo-item">${l}</span>`).join('');
+
+    // Logos animation
+    gsap.to('#logosTrack', { x: '-50%', duration: 30, ease: 'none', repeat: -1 });
+
+    // Testimonials animation
+    const tTrack = document.querySelector('.t-track');
+    if(tTrack) {
+      gsap.to(tTrack, { x: '-50%', duration: 40, ease: 'none', repeat: -1 });
+      tTrack.addEventListener('mouseenter',()=>gsap.globalTimeline.pause());
+      tTrack.addEventListener('mouseleave',()=>gsap.globalTimeline.resume());
+    }
+
+    // Smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(a=>{
+      a.addEventListener('click',e=>{
+        e.preventDefault();
+        const t=document.querySelector(a.getAttribute('href'));
+        if(t) gsap.to(window,{duration:1.2,scrollTo:{y:t,autoKill:false},ease:'power3.inOut'});
+      });
+    });
+
+    // Loader
+    window.addEventListener('load',()=>{
+      setTimeout(()=>{
+        document.getElementById('loader').classList.add('hide');
+        // Trigger initial reveals
+        gsap.utils.toArray('.sh').forEach(el=>{
+          gsap.from(el,{scrollTrigger:{trigger:el,start:'top 80%'},y:60,opacity:0,duration:1,ease:'power3.out'});
+        });
+        gsap.utils.toArray('.bi').forEach((el,i)=>{
+          gsap.from(el,{scrollTrigger:{trigger:el,start:'top 85%'},y:80,opacity:0,duration:0.8,delay:i*0.05,ease:'power3.out'});
+        });
+      },1800);
+    });
+
+    // Cursor
+    const cg=document.getElementById('cursorGlow');
+    let gx=0,gy=0,mx=0,my=0;
+    addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+    function ac(){gx+=(mx-gx)*0.08;gy+=(my-gy)*0.08;if(cg){cg.style.left=gx+'px';cg.style.top=gy+'px';}requestAnimationFrame(ac);}
+    ac();
+
+    // Parallax bento cards
+    gsap.utils.toArray('.bi').forEach(el=>{
+      const img=el.querySelector('.bi-img');
+      if(img) gsap.to(img,{scrollTrigger:{trigger:el,start:'top bottom',end:'bottom top',scrub:true},y:40});
+    });
+  </script>
+</body>
+</html>
